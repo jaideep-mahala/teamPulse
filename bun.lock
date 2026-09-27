@@ -61,10 +61,12 @@
       "name": "ws",
       "dependencies": {
         "db": "*",
+        "jsonwebtoken": "^9.0.3",
         "ws": "^8.21.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "@types/jsonwebtoken": "^9.0.10",
         "@types/ws": "^8.18.1",
       },
       "peerDependencies": {

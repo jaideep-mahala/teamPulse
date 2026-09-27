@@ -75,8 +75,31 @@
 }
 
 .board-navbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   font-size: 0.85rem;
   color: var(--board-text-dim);
+}
+
+@media (max-width: 600px) {
+  .board-navbar {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .board-navbar__crumb {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .board-navbar__meta {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    white-space: nowrap;
+  }
 }
 
 .board-error {

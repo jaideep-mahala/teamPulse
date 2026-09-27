@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
+import { useBoardPresence } from "../hooks/useBoardPresence";
 import IssueModal from "./issue.tsx";
 import {
   PART_LABEL,
@@ -30,6 +31,7 @@ import "./board.css";
  */
 
 export interface BoardProps {
+  boardId: string;
   organizationName: string;
   boardPart: BoardPart;
   sectionIds: Record<SectionKey, string>;
@@ -45,6 +47,7 @@ function emptySections(): IssuesBySection {
 }
 
 export default function Board({
+  boardId,
   organizationName,
   boardPart,
   sectionIds,
@@ -61,9 +64,12 @@ export default function Board({
   const [openComposer, setOpenComposer] = useState<SectionKey | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [saveError, setSaveError] = useState("");
+  const activeUserCount = useBoardPresence(boardId);
   const [selected, setSelected] = useState<{ section: SectionKey; issueId: string } | null>(
     null
   );
+
+  
 
   const issueCount = useMemo(
     () => SECTION_ORDER.reduce((sum, key) => sum + issues[key].length, 0),
@@ -237,7 +243,12 @@ export default function Board({
           </span>
         </div>
         <div className="board-navbar__meta">
-          {issueCount} issue{issueCount === 1 ? "" : "s"}
+          <span>{issueCount} issue{issueCount === 1 ? "" : "s"}</span>
+          <span aria-live="polite">
+            {activeUserCount === null
+              ? "connecting…"
+              : `${activeUserCount} active user${activeUserCount === 1 ? "" : "s"}`}
+          </span>
         </div>
       </header>
 
@@ -359,6 +370,7 @@ export function BoardRoute() {
   const [organizationName, setOrganizationName] = useState("Loading...");
   const [error, setError] = useState("");
   const [boardData, setBoardData] = useState<{
+    boardId: string;
     sectionIds: Record<SectionKey, string>;
     issues: IssuesBySection;
   } | null>(null);
@@ -442,7 +454,7 @@ export function BoardRoute() {
         for (const loadedSection of loadedSections) {
           issues[loadedSection.section] = loadedSection.issues;
         }
-        setBoardData({ sectionIds, issues });
+        setBoardData({ boardId: board.id, sectionIds, issues });
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Unable to load board.");
       }
@@ -465,6 +477,7 @@ export function BoardRoute() {
 
   return (
     <Board
+      boardId={boardData.boardId}
       organizationName={organizationName}
       boardPart={boardPart as BoardPart}
       sectionIds={boardData.sectionIds}
