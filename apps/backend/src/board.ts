@@ -1,3 +1,4 @@
+import { publishBoardEvent } from "redis/realtime";
 import express, { type Response, type Request } from "express";
 import { BoardSchema, BoardUpdateSchema } from "../zod";
 import { prisma } from "db/client";
@@ -73,6 +74,11 @@ router.post(
       },
     });
 
+    await publishBoardEvent({
+      type: "board_changed",
+      boardId: board.id,
+    });
+
     return res.status(200).json({
       success: true,
       data: board,
@@ -117,6 +123,11 @@ router.delete(
       where: {
         id: boardId,
       },
+    });
+
+    await publishBoardEvent({
+      type: "board_deleted",
+      boardId,
     });
 
     return res.status(200).json({
@@ -167,6 +178,11 @@ router.put(
       data: {
         title: data.title,
       },
+    });
+
+    await publishBoardEvent({
+      type: "board_changed",
+      boardId,
     });
 
     return res.status(200).json({

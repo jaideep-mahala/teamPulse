@@ -1,0 +1,28 @@
+{
+  "name": "redis",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./keys": "./src/keys.ts",
+    "./realtime": "./src/realtime.ts",
+    "./presence": "./src/presence.ts",
+    "./presence-extra": "./src/presence-extra.ts"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "ioredis": "^5.4.1"
+  }
+}

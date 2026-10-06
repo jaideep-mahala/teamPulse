@@ -17,6 +17,7 @@
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.21.3",
-    "db": "*"
+    "db": "*",
+    "redis": "*"
   }
 }

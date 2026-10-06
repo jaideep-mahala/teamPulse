@@ -1,3 +1,4 @@
+import { publishBoardEvent } from "redis/realtime";
 import express, { type Response, type Request } from "express";
 import { SectionSchema, SectionUpdateSchema } from "../zod";
 import { prisma } from "db/client";
@@ -84,6 +85,12 @@ router.post(
       },
     });
 
+    await publishBoardEvent({
+      type: "section_created",
+      sectionId: section.id,
+      boardId: data.boardId,
+    });
+
     return res.status(200).json({
       success: true,
       data: section,
@@ -141,6 +148,12 @@ router.put(
       data: {
         title: data.title,
       },
+    });
+
+    await publishBoardEvent({
+      type: "section_updated",
+      sectionId: section.id,
+      boardId: section.boardId,
     });
 
     return res.status(200).json({
@@ -227,10 +240,17 @@ router.delete(
       });
     }
 
+    const boardId = existingSection.boardId;
     await prisma.section.delete({
       where: {
         id: sectionId,
       },
+    });
+
+    await publishBoardEvent({
+      type: "section_deleted",
+      sectionId,
+      boardId,
     });
 
     return res.status(200).json({
