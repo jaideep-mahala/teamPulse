@@ -1,159 +1,194 @@
-# Turborepo starter
+# TeamPulse
 
-This Turborepo starter is maintained by the Turborepo core team.
+TeamPulse is a collaborative team workspace for organizing work by organization and board. Teams can create organizations, manage membership, and track issues across shared boards. Board updates are persisted in PostgreSQL, while a WebSocket service reports who is currently viewing a board.
 
-## Using this example
+## What you can do
 
-Run the following command:
+- Create an account with email and password, or sign in with Google OAuth when configured.
+- Create and manage organizations with administrator and member roles.
+- Work from Frontend, Backend, and DevOps boards. Each board groups issues into **Upcoming**, **In Progress**, and **Done** sections.
+- Create issues, move them through the workflow, and discuss work with comments.
+- Invite organization members and accept invitations.
+- See active board presence over WebSockets, with Redis Pub/Sub supporting presence and events across service instances.
 
-```sh
-npx create-turbo@latest
+## Technology
+
+| Area | Technologies |
+| --- | --- |
+| Monorepo and runtime | Bun workspaces, Turborepo, TypeScript |
+| Web application | React 19, React Router, Axios, Framer Motion, Lucide |
+| REST API | Express 5, Zod, JWT, bcrypt |
+| Realtime | WebSocket (`ws`), Redis (`ioredis`) |
+| Data | PostgreSQL, Prisma 6, `@prisma/adapter-pg` |
+| Integrations | Google OAuth (optional); Resend helper is present but email sending is not currently connected to the invitation route |
+
+## Repository layout
+
+```text
+apps/
+	frontend/   React single-page application
+	backend/    Express REST API (port 4000)
+	ws/         Authenticated board-presence WebSocket server (port 5000)
+packages/
+	db/         Prisma schema, migrations, generated client, PostgreSQL adapter
+	redis/      Redis client, Pub/Sub, realtime events, and board presence
+	ui/         Shared UI package
+	eslint-config/       Shared lint configuration
+	typescript-config/   Shared TypeScript configurations
 ```
 
-## What's inside?
+## Prerequisites
 
-This Turborepo includes the following packages/apps:
+- Git
+- [Bun 1.4.0](https://bun.sh/) (the version declared by this repository)
+- [Node.js 24 or newer](https://nodejs.org/) (the root package declares this engine requirement)
+- PostgreSQL
+- Redis for cross-instance realtime events and board presence
+- Docker, if you want to run PostgreSQL and Redis in containers
 
-### Apps and Packages
+Windows users can run the commands from PowerShell with Bun installed, or use WSL. The examples below use paths that work in Bash and PowerShell.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## Get the project
 
 ```sh
-cd my-turborepo
-turbo build
+git clone https://github.com/jaideep-mahala/teamPulse-fullstack.git
+cd teamPulse-fullstack
+bun install
 ```
 
-Without global `turbo`, use your package manager:
+Install dependencies once from the repository root. Bun installs dependencies for all workspaces using `bun.lock`.
+
+## Start the supporting services
+
+Start PostgreSQL and Redis locally, or use Docker. These example containers publish the default ports used by the app:
 
 ```sh
-cd my-turborepo
-npx turbo build
-bun exec turbo build
-bun exec turbo build
+docker run --name teampulse-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=teampulse -p 5432:5432 -d postgres:16-alpine
+docker run --name teampulse-redis -p 6379:6379 -d redis:7-alpine
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+If you already have PostgreSQL or Redis running, use those services instead. The PostgreSQL database must exist and be reachable before applying migrations.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## Configure environment
+
+Create `packages/db/.env` for Prisma CLI commands:
+
+```dotenv
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/teampulse?schema=public"
+```
+
+Create `apps/backend/.env`:
+
+```dotenv
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/teampulse?schema=public"
+JWT_SECRET="replace-with-a-long-random-secret"
+FRONTEND_URL="http://localhost:3000"
+```
+
+Use the same `JWT_SECRET` in the backend and WebSocket service. Update `DATABASE_URL` in all three files if your database credentials, host, port, or database name differ. Bun loads environment variables from the app's working directory, so the backend and WebSocket `.env` files are needed even though the Prisma CLI has its own file. Do not commit real secrets.
+
+Google sign-in is optional. To enable it, add these values to `apps/backend/.env` and configure the same callback URL in your Google OAuth client:
+
+```dotenv
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_REDIRECT_URI="http://localhost:4000/api/v1/auth/google/callback"
+```
+
+The frontend currently targets `http://localhost:4000` for API requests, `http://localhost:3000` for its development origin, and port `5000` for WebSockets. Keep those ports unless you also update the corresponding frontend configuration and API CORS origin.
+
+Create `apps/ws/.env`:
+
+```dotenv
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/teampulse?schema=public"
+JWT_SECRET="replace-with-the-same-long-random-secret-used-by-the-backend"
+REDIS_URL="redis://localhost:6379"
+```
+
+## Prepare the database
+
+From the repository root, run Prisma generation and apply the checked-in migrations:
 
 ```sh
-turbo build --filter=docs
+cd packages/db
+bunx prisma generate
+bunx prisma migrate dev
+cd ../..
 ```
 
-Without global `turbo`:
+Run migrations again after pulling schema changes that add a new migration. For a clean local database, `migrate dev` applies the existing migration history and creates the development database schema.
+
+## Run the application
+
+Start each process in its own terminal from the repository root. The API has no `dev` script, so start it directly with Bun.
+
+**Terminal 1: REST API**
 
 ```sh
-npx turbo build --filter=docs
-bun exec turbo build --filter=docs
-bun exec turbo build --filter=docs
+cd apps/backend
+bun run index.ts
 ```
 
-### Develop
+The API listens on `http://localhost:4000`. Check it at `http://localhost:4000/health`.
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+**Terminal 2: WebSocket service**
 
 ```sh
-cd my-turborepo
-turbo dev
+cd apps/ws
+bun run dev
 ```
 
-Without global `turbo`, use your package manager:
+The WebSocket service listens on port `5000` by default.
+
+**Terminal 3: Frontend**
 
 ```sh
-cd my-turborepo
-npx turbo dev
-bun exec turbo dev
-bun exec turbo dev
+cd apps/frontend
+bun run dev
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Open the local URL printed by Bun (normally `http://localhost:3000`). Sign up, create an organization, and open a board to try the workflow.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Stop any process with `Ctrl+C`. To restart Docker dependencies later:
 
 ```sh
-turbo dev --filter=web
+docker start teampulse-postgres teampulse-redis
 ```
 
-Without global `turbo`:
+## Useful commands
 
-```sh
-npx turbo dev --filter=web
-bun exec turbo dev --filter=web
-bun exec turbo dev --filter=web
-```
+Run these from the repository root unless noted otherwise:
 
-### Remote Caching
+| Command | Purpose |
+| --- | --- |
+| `bun install` | Install all workspace dependencies |
+| `cd packages/db && bunx prisma generate` | Generate the Prisma client |
+| `cd packages/db && bunx prisma migrate dev` | Apply migrations in development |
+| `cd apps/backend && bun run index.ts` | Start the REST API |
+| `cd apps/ws && bun run dev` | Start the WebSocket service |
+| `cd apps/frontend && bun run dev` | Start the frontend development server |
+| `cd apps/frontend && bun run build` | Build the frontend for production |
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+The root `bun run dev` command uses Turborepo, but it does not start the backend because the backend workspace does not currently define a `dev` script. Use the three-terminal instructions above for a complete local development setup.
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+## API overview
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+The Express API is rooted at `/api/v1` and uses JWT authentication for protected operations. It includes routes for:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+- Signup, signin, Google OAuth, and the current user's profile
+- Organization creation, lookup, update, and deletion
+- Membership invitations and invitation acceptance
+- Board creation, lookup, updates, and deletion
+- Section and issue management, including moving issues between sections
+- Issue comments
 
-```sh
-cd my-turborepo
-turbo login
-```
+`GET /health` is an unauthenticated health check. The frontend and API are configured for local development; production deployments need the frontend API/WebSocket URLs, CORS origin, OAuth callback, and secrets configured for their deployment environment.
 
-Without global `turbo`, use your package manager:
+## Troubleshooting
 
-```sh
-cd my-turborepo
-npx turbo login
-bun exec turbo login
-bun exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-bun exec turbo link
-bun exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- **Database connection errors:** Confirm PostgreSQL is running, the database exists, and each `DATABASE_URL` points to it. Check the `.env` file for the process you are starting.
+- **Prisma migration errors:** Run `bun install`, then run `bunx prisma generate` and `bunx prisma migrate dev` from `packages/db`.
+- **Authentication or presence failures:** Confirm `JWT_SECRET` is set and identical in `apps/backend/.env` and `apps/ws/.env`.
+- **No active-user count or Redis warnings:** Confirm Redis is reachable at `REDIS_URL` (default `redis://localhost:6379`).
+- **Frontend cannot reach the API:** Ensure the API uses port `4000` and the frontend is opened at `http://localhost:3000`, the origin allowed by the API's CORS configuration.
+- **Google sign-in fails:** Verify all three Google OAuth variables and ensure the callback URL exactly matches the URL registered with Google.
