@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: websocket
-          image: teampulse-websocket:latest
+          image: 900532378485.dkr.ecr.us-west-2.amazonaws.com/teampulse-websocket:b0dd780
           imagePullPolicy: IfNotPresent
           ports:
             - name: websocket

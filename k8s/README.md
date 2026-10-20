@@ -38,6 +38,20 @@ For Minikube, enable its Ingress addon and map the Minikube IP to `teampulse.loc
 
 The frontend calls the API and WebSocket through the same Ingress host, so it does not need cluster-internal DNS. Google OAuth is optional; when enabled, configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` on the backend Deployment, using the public Ingress callback URL ending in `/api/v1/auth/google/callback`.
 
+## Jenkins pipeline
+
+The repository-root `Jenkinsfile` builds and scans the backend, frontend, and WebSocket images, pushes them to ECR, and applies the Kubernetes manifests with the build-specific image tags. Before running it, configure:
+
+- An agent with Docker, AWS CLI, `kubectl`, Trivy, and network access to the configured services.
+- The Jenkins AWS credentials binding plugin and a credential with ID `aws-ecr-credentials`, authorized to push to the three ECR repositories.
+- A Jenkins file credential with ID `teampulse-kubeconfig` for the target cluster.
+- A SonarQube server named `SonarQube` and a scanner installation named `SonarScanner` in Jenkins system configuration.
+- The `AWS_REGION` and `ECR_REGISTRY` pipeline parameters. Create the ECR repositories `teampulse-backend`, `teampulse-frontend`, and `teampulse-websocket` in that registry.
+- The Kubernetes worker nodes need permission to pull images from those ECR repositories.
+- The Kubernetes `teampulse` namespace configuration and `teampulse-secrets` secret required by the manifests. Do not use the example secret values in a real deployment.
+
+The pipeline blocks on Trivy HIGH/CRITICAL findings and waits for the migration Job and all three deployments to complete.
+
 ## Operations
 
 ```sh
