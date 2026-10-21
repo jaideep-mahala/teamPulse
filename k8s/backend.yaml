@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
+  namespace: teampulse
 spec:
   selector:
     app: backend
@@ -15,6 +16,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: teampulse
 spec:
   replicas: 1
   selector:
@@ -27,7 +29,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: 900532378485.dkr.ecr.us-west-2.amazonaws.com/teampulse-backend:b0dd780
+          image: 900532378485.dkr.ecr.us-west-2.amazonaws.com/teampulse-backend:00da329
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -44,10 +46,7 @@ spec:
                   name: teampulse-secrets
                   key: JWT_SECRET
             - name: FRONTEND_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: teampulse-config
-                  key: FRONTEND_URL
+              value: "https://jaideepmahala.online"
           readinessProbe:
             httpGet:
               path: /health
@@ -66,3 +65,11 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/rds-ca
+              readOnly: true
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: rds-ca-bundle
