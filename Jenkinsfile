@@ -64,17 +64,14 @@ pipeline {
                     sh """
                       export AWS_DEFAULT_REGION=${AWS_REGION}
                       aws eks update-kubeconfig --name ${CLUSTER} --region ${AWS_REGION}
-
-                      # Jobs are immutable, so remove the old migration job first
-                      kubectl -n ${K8S_NS} delete job migration --ignore-not-found
-
-                      cd k8s
-                      kustomize edit set image \
-                        teampulse-backend=${ECR_REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG} \
-                        teampulse-ws=${ECR_REGISTRY}/${WS_REPO}:${IMAGE_TAG}
-                      kubectl apply -k .
-
-                      kubectl -n ${K8S_NS} wait --for=condition=complete job/migration --timeout=180s
+        
+                      K8S_DIR=/var/lib/jenkins/k8s
+        
+                      kubectl -n ${K8S_NS} apply -f \$K8S_DIR/backend.yaml -f \$K8S_DIR/websocket.yaml
+        
+                      kubectl -n ${K8S_NS} set image deployment/backend   '*=${ECR_REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG}'
+                      kubectl -n ${K8S_NS} set image deployment/websocket '*=${ECR_REGISTRY}/${WS_REPO}:${IMAGE_TAG}'
+        
                       kubectl -n ${K8S_NS} rollout status deploy/backend   --timeout=180s
                       kubectl -n ${K8S_NS} rollout status deploy/websocket --timeout=180s
                     """
