@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "build:prod": "BUN_PUBLIC_API_URL=https://api.jaideepmahala.online/api/v1 BUN_PUBLIC_WS_URL=wss://api.jaideepmahala.online/ws bun run build",
     "start": "NODE_ENV=production bun src/index.ts"
   },
   "dependencies": {

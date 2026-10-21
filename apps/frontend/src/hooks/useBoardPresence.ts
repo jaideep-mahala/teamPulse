@@ -27,9 +27,9 @@ export function useBoardPresence(boardId: string): number | null {
 
     const connect = () => {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      socket = new WebSocket(
-        `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`,
-      );
+      const wsBase =
+        process.env.BUN_PUBLIC_WS_URL ?? `${protocol}//${window.location.host}/ws`;
+      socket = new WebSocket(`${wsBase}?token=${encodeURIComponent(token)}`);
       socket.onopen = () => {
         socket?.send(JSON.stringify({ type: "join", boardId }));
       };
