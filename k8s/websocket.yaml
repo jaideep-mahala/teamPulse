@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: websocket
+  namespace: teampulse
 spec:
   selector:
     app: websocket
@@ -15,6 +16,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: websocket
+  namespace: teampulse
 spec:
   replicas: 1
   selector:
@@ -27,7 +29,7 @@ spec:
     spec:
       containers:
         - name: websocket
-          image: 900532378485.dkr.ecr.us-west-2.amazonaws.com/teampulse-websocket:b0dd780
+          image: 900532378485.dkr.ecr.us-west-2.amazonaws.com/teampulse-websocket:00da329
           imagePullPolicy: IfNotPresent
           ports:
             - name: websocket
@@ -46,10 +48,7 @@ spec:
                   name: teampulse-secrets
                   key: JWT_SECRET
             - name: REDIS_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: teampulse-config
-                  key: REDIS_URL
+              value: "redis://redis:6379"
           readinessProbe:
             tcpSocket:
               port: websocket
@@ -66,3 +65,11 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/rds-ca
+              readOnly: true
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: rds-ca-bundle
